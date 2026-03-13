@@ -37,7 +37,7 @@ fi
 echo "Przygotowywanie repozytorium Dockera..."
 apt-get update && apt-get install -y ca-certificates curl
 if [[ $? -ne 0 ]]; then
-    echo "Nie można zainstalować pośrednich zależności Dodckera! Zobacz co się stało powyżej."
+    echo "Nie można zainstalować pośrednich zależności Dockera! Zobacz co się stało powyżej."
     exit 1
 fi
 
