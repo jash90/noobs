@@ -3,6 +3,9 @@
 # Autor: Jakub 'unknow' Mrugalski
 # Edited and modified by: Andrzej 'Ferex' Szczepaniak, Jarosław 'Evilus' Rauza, Artur 'stefopl' Stefański
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/noobs_lib.sh" || exit 1
+
 function show_help() {
     echo "Użycie: $0 [--php-fpm | --php-mod]"
     echo "Opcje:"
@@ -12,7 +15,7 @@ function show_help() {
     echo ""
 }
 
-[[ $EUID != 0 ]]  && { echo "Uruchom jako root" ; exit; }
+require_root
 
 USE_PHP_FPM=false
 
@@ -40,8 +43,8 @@ for arg in "$@"; do
     esac
 done
 
-apt update
-apt install -y software-properties-common
+pkg_update
+pkg_install software-properties-common
 
 # Repozytoria zewnętrzne z najnowszymi PHP i Apache2 (nie ma ich w standardowym Ubuntu)
 add-apt-repository -y ppa:ondrej/apache2
@@ -49,7 +52,7 @@ add-apt-repository -y ppa:ondrej/php
 
 # Instalacja Apache2 oraz popularnych modułów PHP
 if [ "$USE_PHP_FPM" = true ]; then
-    apt install -y apache2 libapache2-mod-fcgid php php-fpm php-curl php-common php-igbinary php-imagick php-intl php-mbstring php-xml php-zip php-bcmath php-gd php-cli php-memcached php-memcache php-sqlite3 php-pgsql php-mysql php-mcrypt
+    pkg_install apache2 libapache2-mod-fcgid php php-fpm php-curl php-common php-igbinary php-imagick php-intl php-mbstring php-xml php-zip php-bcmath php-gd php-cli php-memcached php-memcache php-sqlite3 php-pgsql php-mysql php-mcrypt
     # Zmiana mpm_prefork na mpm_event mpm-prefork działa kiedy instalujemy libapache2-mod-php a mpm_event dla php-fpm
     a2dismod mpm_prefork
     if ! apache2ctl -M | grep -q 'mpm_event'; then
@@ -60,7 +63,7 @@ if [ "$USE_PHP_FPM" = true ]; then
     a2enconf php"$PHP_VERSION"-fpm
     a2enmod rewrite setenvif proxy proxy_fcgi
 else
-    apt install -y apache2 libapache2-mod-php php php-curl php-common php-igbinary php-imagick php-intl php-mbstring php-xml php-zip php-bcmath php-gd php-cli php-sqlite3 php-pgsql php-mysql php-mcrypt
+    pkg_install apache2 libapache2-mod-php php php-curl php-common php-igbinary php-imagick php-intl php-mbstring php-xml php-zip php-bcmath php-gd php-cli php-sqlite3 php-pgsql php-mysql php-mcrypt
 
     PHP_VERSION="$(/usr/bin/php.default -v | head -1 | cut -c5-7)"
     a2disconf php"$PHP_VERSION"-fpm
@@ -73,15 +76,15 @@ else
 fi
 
 # Restart Apache
-systemctl restart apache2
+service_restart apache2
 
 # Instalacja MariaDB (klient i serwer)
-apt install -y mariadb-server mariadb-client
+pkg_install mariadb-server mariadb-client
 # Uruchomienie serwera mariadb
-systemctl start mariadb
+service_start mariadb
 # Dodanie MariaDB i Apache2 do autostartu
-systemctl enable apache2
-systemctl enable mariadb
+service_enable apache2
+service_enable mariadb
 
 
 if [ -f /var/www/html/index.html ]; then
@@ -90,8 +93,7 @@ if [ -f /var/www/html/index.html ]; then
 fi
 
 if [ -f /var/www/html/index.php ]; then
-    read -p "Plik /var/www/html/index.php już istnieje. Czy chcesz go nadpisać? (t/n): " choice
-    if [[ "$choice" != "t" ]]; then
+    if ! ask_yes_no "Plik /var/www/html/index.php już istnieje. Czy chcesz go nadpisać?"; then
         echo "Plik nie został nadpisany."
         exit 0
     fi
@@ -113,4 +115,4 @@ sed -i -e "s/^ServerSignature OS*.*\$/ServerSignature Off/" '/etc/apache2/conf-a
 sed -i -e "s/^ServerTokens OS*.*\$/ServerTokens Prod/" '/etc/apache2/conf-available/security.conf'
 
 # Restart Apache
-systemctl restart apache2
+service_restart apache2

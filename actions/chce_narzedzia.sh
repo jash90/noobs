@@ -2,6 +2,9 @@
 # Instalacja przydatnych programow
 # Autor: Maciej Loper
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/noobs_lib.sh" || exit 1
+
 PKG1="vim tree multitail"
 PKG2="unattended-upgrades ncdu silversearcher-ag"
 PKG3="ansible ranger logwatch python3-pip fish nmon"
@@ -22,12 +25,12 @@ usage() {
 # zainstaluj paczke nr X
 install_pX() {
     pkg="PKG${1}"
-    sudo apt install -y ${!pkg}
+    pkg_install ${!pkg}
 }
 
 # aktualizuj repozytoria
 update_repo() {
-    sudo apt update
+    pkg_update
 }
 
 [ "$#" -lt 1 ] && usage

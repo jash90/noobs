@@ -1,25 +1,23 @@
 #!/bin/bash
 #Michał Giza
 
-echo -e "\e[1;32mSprawdzenie uprawnień \e[0m"
-if [ $EUID != 0 ] 
-then
-	echo "Uruchom poprzez sudo bash chce_typo3.sh lub jako root"
-    exit
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/noobs_lib.sh" || exit 1
 
-echo -e "\e[1;32mAktualizacja pakietów \e[0m"
-apt update
+require_root
 
-echo -e "\e[1;32mDodanie repozytorium z PHP \e[0m"
-apt install software-properties-common -y
+msg_info "Aktualizacja pakietów"
+pkg_update
+
+msg_info "Dodanie repozytorium z PHP"
+pkg_install software-properties-common
 add-apt-repository ppa:ondrej/php -y
-apt update
+pkg_update
 
-echo -e "\e[1;32mInstalacja pakietów \e[0m"
-apt install vsftpd apache2 mariadb-server php7.4 libapache2-mod-php7.4 php7.4-common php7.4-gmp php7.4-curl php7.4-intl php7.4-mbstring php7.4-xmlrpc php7.4-mysql php7.4-gd php7.4-xml php7.4-cli php7.4-zip curl git gnupg2 -y
+msg_info "Instalacja pakietów"
+pkg_install vsftpd apache2 mariadb-server php7.4 libapache2-mod-php7.4 php7.4-common php7.4-gmp php7.4-curl php7.4-intl php7.4-mbstring php7.4-xmlrpc php7.4-mysql php7.4-gd php7.4-xml php7.4-cli php7.4-zip curl git gnupg2
 
-echo -e "\e[1;32mKonfiguracja FTP \e[0m"
+msg_info "Konfiguracja FTP"
 cp /etc/vsftpd.conf /etc/vsftpd.conf.backup
 cat > /etc/vsftpd.conf <<EOL
 listen=NO
@@ -44,24 +42,24 @@ pasv_min_port=40000
 pasv_max_port=40100
 EOL
 
-echo -e "\e[1;32mRestart vsftpd \e[0m"
-systemctl restart vsftpd
+msg_info "Restart vsftpd"
+service_restart vsftpd
 
-echo -e "\e[1;32mDodanie dedykowanego usera dla web servera \e[0m"
-SSH_PASS="$(openssl rand -base64 12)"
+msg_info "Dodanie dedykowanego usera dla web servera"
+SSH_PASS="$(generate_password)"
 useradd -m cms -s /bin/bash
 echo cms:${SSH_PASS} | chpasswd
 
-echo -e "\e[1;32mBlokada dostępu SSH \e[0m"
+msg_info "Blokada dostępu SSH"
 cat >> /etc/ssh/sshd_config <<EOL
 Match User cms
 ChrootDirectory /home/cms
 EOL
 
-echo -e "\e[1;32mRestart SSH \e[0m"
-systemctl restart ssh
+msg_info "Restart SSH"
+service_restart ssh
 
-echo -e "\e[1;32mZmiana ustawień PHP \e[0m"
+msg_info "Zmiana ustawień PHP"
 sed -i 's,^memory_limit =.*$,memory_limit = 256M,' /etc/php/7.4/apache2/php.ini
 sed -i 's,^upload_max_filesize =.*$,upload_max_filesize = 100M,' /etc/php/7.4/apache2/php.ini
 sed -i 's,^post_max_size =.*$,post_max_size = 100M,' /etc/php/7.4/apache2/php.ini
@@ -71,35 +69,35 @@ cat >> /etc/php/7.4/apache2/php.ini <<EOL
 max_input_vars = 1500
 EOL
 
-echo -e "\e[1;32mRestart Apache \e[0m"
-systemctl restart apache2
+msg_info "Restart Apache"
+service_restart apache2
 
-echo -e "\e[1;32mTworzenie bazy i usera \e[0m"
-HASLO="$(openssl rand -base64 12)"
+msg_info "Tworzenie bazy i usera"
+HASLO="$(generate_password)"
 mysql -e "CREATE DATABASE cms;"
 mysql -e "CREATE USER 'cms'@'localhost' IDENTIFIED BY '${HASLO}';"
 mysql -e "GRANT ALL ON cms.* TO 'cms'@'localhost' WITH GRANT OPTION;"
 mysql -e "FLUSH PRIVILEGES;"
 
-echo -e "\e[1;32mPobieranie TYPO3 \e[0m"
+msg_info "Pobieranie TYPO3"
 curl -L -o /tmp/typo3_src.tgz https://get.typo3.org/10.4.21
 
-echo -e "\e[1;32mRozpakowanie archwium \e[0m"
+msg_info "Rozpackowanie archiwum"
 tar -xvzf /tmp/typo3_src.tgz
 
-echo -e "\e[1;32mPrzeniesienie katalogu z TYPO3 do /home/cms \e[0m"
+msg_info "Przeniesienie katalogu z TYPO3 do /home/cms"
 mv typo3_src-10.4.21 /home/cms
 
-echo -e "\e[1;32mZmiana nazwy katalogu na public_html \e[0m"
+msg_info "Zmiana nazwy katalogu na public_html"
 mv /home/cms/typo3_src-10.4.21 /home/cms/public_html
 
-echo -e "\e[1;32mZmiana uprawnień na odpowiednie \e[0m"
+msg_info "Zmiana uprawnień na odpowiednie"
 chown -R cms:www-data /home/cms/public_html
 chmod 2775 /home/cms/public_html
 find /home/cms/public_html -type d -exec chmod 2775 {} +
 find /home/cms/public_html -type f -exec chmod 0664 {} +
 
-echo -e "\e[1;32mZapisanie konfiguracji Apache \e[0m"
+msg_info "Zapisanie konfiguracji Apache"
 cat > /etc/apache2/sites-available/cms.conf <<EOL
 <VirtualHost *:80>
      DocumentRoot /home/cms/public_html
@@ -115,22 +113,21 @@ cat > /etc/apache2/sites-available/cms.conf <<EOL
 </VirtualHost>
 EOL
 
-echo -e "\e[1;32mAktywacja virtual hosta i wyłączenie domyślnej strony Apache \e[0m"
+msg_info "Aktywacja virtual hosta i wyłączenie domyślnej strony Apache"
 a2ensite cms.conf
 a2dissite 000-default.conf
 
-echo -e "\e[1;32mAktywacja mod_rewrite \e[0m"
+msg_info "Aktywacja mod_rewrite"
 a2enmod rewrite
 
-echo -e "\e[1;32mRestart Apache \e[0m"
-systemctl restart apache2
+msg_info "Restart Apache"
+service_restart apache2
 
-echo -e "\e[1;32mUtworzenie koniecznego pliku FIRST_INSTALL \e[0m"
+msg_info "Utworzenie koniecznego pliku FIRST_INSTALL"
 sudo -u cms touch /home/cms/public_html/FIRST_INSTALL
 
-echo -e "\e[1;32mDalsze instrukcje w pliku typo3.txt \e[0m"
-GATEWAY="$(/sbin/ip route | awk '/default/ { print $3 }')"
-IP="$(ip route get ${GATEWAY} | grep -oP 'src \K[^ ]+')"
+msg_info "Dalsze instrukcje w pliku typo3.txt"
+IP="$(get_local_ip)"
 cat > typo3.txt <<EOL
 TYPO3 jest gotowy do instalacji pod http://${IP}.
 Nazwa bazy i użytkownika to cms.

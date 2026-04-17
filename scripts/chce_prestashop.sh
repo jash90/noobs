@@ -1,35 +1,32 @@
 #!/bin/bash
 #Michał Giza
 
-echo -e "\e[1;32mSprawdzenie uprawnień \e[0m"
-if [ $EUID != 0 ]
-then
-	echo "Uruchom poprzez sudo bash chce_prestashop.sh lub jako root"
-    exit
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/noobs_lib.sh" || exit 1
 
+require_root
 
-echo -e "\e[1;32mAktualizacja pakietów \e[0m"
-apt update
+msg_info "Aktualizacja pakietów"
+pkg_update
 
-echo -e "\e[1;32mDodanie repozytorium z PHP \e[0m"
-apt install software-properties-common -y
+msg_info "Dodanie repozytorium z PHP"
+pkg_install software-properties-common
 add-apt-repository ppa:ondrej/php -y
-apt update
+pkg_update
 
-echo -e "\e[1;32mInstalacja pakietów \e[0m"
-apt install vsftpd unzip nginx mariadb-server php7.4-fpm php7.4-common php7.4-mysql php7.4-gmp php7.4-curl php7.4-intl php7.4-mbstring php7.4-xmlrpc php7.4-gd php7.4-xml php7.4-cli php7.4-zip -y
+msg_info "Instalacja pakietów"
+pkg_install vsftpd unzip nginx mariadb-server php7.4-fpm php7.4-common php7.4-mysql php7.4-gmp php7.4-curl php7.4-intl php7.4-mbstring php7.4-xmlrpc php7.4-gd php7.4-xml php7.4-cli php7.4-zip
 
-echo -e "\e[1;32mBlokada dostępu SSH \e[0m"
+msg_info "Blokada dostępu SSH"
 cat >> /etc/ssh/sshd_config <<EOL
 Match User shop
 ChrootDirectory /home/shop
 EOL
 
-echo -e "\e[1;32mRestart SSH \e[0m"
-systemctl restart ssh
+msg_info "Restart SSH"
+service_restart ssh
 
-echo -e "\e[1;32mKonfiguracja FTP \e[0m"
+msg_info "Konfiguracja FTP"
 cp /etc/vsftpd.conf /etc/vsftpd.conf.backup
 cat > /etc/vsftpd.conf <<EOL
 listen=NO
@@ -54,22 +51,22 @@ pasv_min_port=40000
 pasv_max_port=40100
 EOL
 
-echo -e "\e[1;32mRestart vsftpd \e[0m"
-systemctl restart vsftpd
+msg_info "Restart vsftpd"
+service_restart vsftpd
 
-echo -e "\e[1;32mTworzenie bazy i usera \e[0m"
-HASLO="$(openssl rand -base64 12)"
+msg_info "Tworzenie bazy i usera"
+HASLO="$(generate_password)"
 mysql -e "CREATE DATABASE shop;"
 mysql -e "CREATE USER 'shop'@'localhost' IDENTIFIED BY '${HASLO}';"
 mysql -e "GRANT ALL ON shop.* TO 'shop'@'localhost' WITH GRANT OPTION;"
 mysql -e "FLUSH PRIVILEGES;"
 
-echo -e "\e[1;32mDodanie dedykowanego usera dla web servera \e[0m"
-SSH_PASS="$(openssl rand -base64 12)"
+msg_info "Dodanie dedykowanego usera dla web servera"
+SSH_PASS="$(generate_password)"
 useradd -m shop -s /bin/bash
 echo shop:${SSH_PASS} | chpasswd
 
-echo -e "\e[1;32mZmiana ustawień PHP \e[0m"
+msg_info "Zmiana ustawień PHP"
 sed -i 's,^file_uploads =.*$,file_uploads = On,' /etc/php/7.4/fpm/php.ini
 sed -i 's,^allow_url_fopen =.*$,allow_url_fopen = On,' /etc/php/7.4/fpm/php.ini
 sed -i 's,^short_open_tag =.*$,short_open_tag = On,' /etc/php/7.4/fpm/php.ini
@@ -81,7 +78,7 @@ cgi.fix_pathinfo = 0
 date.timezone = Europe/Warsaw
 EOL
 
-echo -e "\e[1;32mUtworzenie dedykowanego PHP pool \e[0m"
+msg_info "Utworzenie dedykowanego PHP pool"
 cp /etc/php/7.4/fpm/pool.d/www.conf /etc/php/7.4/fpm/pool.d/shop.conf
 cat > /etc/php/7.4/fpm/pool.d/shop.conf <<EOL
 [shop]
@@ -97,35 +94,34 @@ pm.min_spare_servers = 1
 pm.max_spare_servers = 3
 EOL
 
-echo -e "\e[1;32mRestart PHP \e[0m"
-systemctl restart php7.4-fpm
+msg_info "Restart PHP"
+service_restart php7.4-fpm
 
-echo -e "\e[1;32mPobieranie PrestaShop \e[0m"
+msg_info "Pobieranie PrestaShop"
 wget https://download.prestashop.com/download/releases/prestashop_1.7.7.8.zip -O /tmp/prestashop_main.zip
 
-echo -e "\e[1;32mWypakowywanie do /home/shop i usunięcie niepotrzebnych plików \e[0m"
+msg_info "Wypakowywanie do /home/shop i usunięcie niepotrzebnych plików"
 unzip /tmp/prestashop_main.zip
 rm Install_PrestaShop.html index.php
 unzip prestashop.zip -d /home/shop
 rm prestashop.zip
 
-echo -e "\e[1;32mDostosowanie uprawnień \e[0m"
+msg_info "Dostosowanie uprawnień"
 chown -R shop:shop /home/shop
 chmod -R 755 /home/shop
 chmod -R 777 /home/shop/var
 
-echo -e "\e[1;32mDodanie konfiguracji Nginx \e[0m"
+msg_info "Dodanie konfiguracji Nginx"
 unlink /etc/nginx/sites-enabled/default
 wget https://raw.githubusercontent.com/gizamichal/NGINX/main/prestashop
 mv prestashop /etc/nginx/sites-available/prestashop
 ln -s /etc/nginx/sites-available/prestashop /etc/nginx/sites-enabled/
 
-echo -e "\e[1;32mRestart Nginx \e[0m"
-systemctl restart nginx
+msg_info "Restart Nginx"
+service_restart nginx
 
-echo -e "\e[1;32mDalsze instrukcje w pliku prestashop.txt \e[0m"
-GATEWAY="$(/sbin/ip route | awk '/default/ { print $3 }')"
-IP="$(ip route get ${GATEWAY} | grep -oP 'src \K[^ ]+')"
+msg_info "Dalsze instrukcje w pliku prestashop.txt"
+IP="$(get_local_ip)"
 cat > prestashop.txt <<EOL
 PrestaShop jest gotowa do instalacji pod http://${IP}.
 Nazwa bazy i użytkownika to shop.

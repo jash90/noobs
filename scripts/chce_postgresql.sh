@@ -3,6 +3,9 @@
 # Author: Janszczyrek
 #
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/noobs_lib.sh" || exit 1
+
 # Dodaj repozytorium postgresql
 sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
 
@@ -10,8 +13,8 @@ sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)
 wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
 
 # Zaktualizuj liste pakietow i zainstaluj postgresql
-sudo apt-get update
-sudo apt-get -y install postgresql
+pkg_update
+pkg_install postgresql
 
 # Zapisz do zmiennej ilosc pamieci ram w mb
 let ile_pamieci=$(free -t --mega | awk 'NR==2{print $2}')
@@ -38,4 +41,4 @@ for postgres_dir in /etc/postgresql/*; do
 done
 
 
-sudo systemctl restart postgresql
+service_restart postgresql

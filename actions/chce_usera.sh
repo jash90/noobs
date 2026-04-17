@@ -3,13 +3,11 @@
 
 # Autor: Radoslaw Karasinski, Grzegorz Ćwikliński, Szymon Hryszko, Artur Stefański
 
-# if no sudo, then exit
-if [ "$(id -u)" != "0" ]; then
-	echo "Musisz uruchomić ten skrypt jako root" 1>&2
-	echo "Spróbuj sudo $0"
-	exit 1
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/noobs_lib.sh" || exit 1
 
-fi
+# if no sudo, then exit
+require_root
 
 _check_if_user_exits() {
     given_user=$1
@@ -39,7 +37,7 @@ _password_get(){
 		# check if password is blank
 		if [ -z "$password" ]; then
 			# generate password
-			password=$(head -c255 /dev/urandom | base64 | grep -Eoi '[a-z0-9]{12}' | head -n1)
+			password=$(generate_password)
 			echo "Twoje hasło to $password"
 			break
 		fi
@@ -60,7 +58,8 @@ if ! [ -z "$1" ]; then
     username=$1
     username_arg=1
 else
-    read -p "Podaj nazwę użytkownika: " username
+    ask_input "Podaj nazwę użytkownika:"
+    username="$REPLY"
     username_arg=0
 fi
 

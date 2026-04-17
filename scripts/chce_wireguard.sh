@@ -3,32 +3,32 @@
 # Współautor: Jakub 'unknow' Mrugalski
 # Aktualizacja: Dawid Kasza
 # Aktualizacja2: Michał Skórcz
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/noobs_lib.sh" || exit 1
+
 set -e
 
 # Sprawdz uprawnienia przed wykonaniem skryptu instalacyjnego
-if [[ $EUID -ne 0 ]]; then
-   echo -e "W celu instalacji tego pakietu potrzebujesz wyzszych uprawnien! Uzyj polecenia \033[1;31msudo ./chce_wireguard.sh\033[0m lub zaloguj sie na konto roota i wywolaj skrypt ponownie."
-   exit 1
-fi
+require_root
 
 # Backup the current resolv.conf file
 cp /etc/resolv.conf /etc/resolv.back
 
 # Update the package list and install necessary packages
-apt update
-apt install -y --no-install-recommends libmnl-dev make qrencode wireguard-tools git iptables
+pkg_update
+pkg_install libmnl-dev make qrencode wireguard-tools git iptables
 
 # Stop and disable resolvconf
-systemctl stop resolvconf || true
-systemctl disable resolvconf || true
+service_stop resolvconf || true
+service_disable resolvconf || true
 
 # Restore the original resolv.conf file
 mv /etc/resolv.back /etc/resolv.conf
 
 # Check for the presence of TUN/TAP device
 if [ ! -e /dev/net/tun ]; then
-   echo "To use Wireguard, you must enable TUN/TAP on your server."
-   exit 1
+   die "To use Wireguard, you must enable TUN/TAP on your server."
 fi
 
 # Download and install Wireguard-Go
@@ -112,12 +112,12 @@ echo -e "\n\n==============\n\nClient Configuration:\n\n"
 curl -s -d "mode=wireguard-client&srv=$srv&privkey=$cliprivkey&pubkey=$pubkey" https://mikr.us/generator.php | tee /etc/wireguard/wg-client1.conf
 
 # Restart Wireguard with the modified configuration
-systemctl stop "wg-quick@wg0"
+service_stop "wg-quick@wg0"
 sed -i '/RETRIES=infinity/{n;s/.*/Environment=WG_I_PREFER_BUGGY_USERSPACE_TO_POLISHED_KMOD=1/}' /lib/systemd/system/wg-quick@.service
 systemctl daemon-reload
 echo "export WG_I_PREFER_BUGGY_USERSPACE_TO_POLISHED_KMOD=1" >> $PROFILE_PATH
 echo "export WG_I_PREFER_BUGGY_USERSPACE_TO_POLISHED_KMOD=1" >> $HOME_PATH/.bashrc
-systemctl start "wg-quick@wg0"
+service_start "wg-quick@wg0"
 
 # Generate a QR code for the client configuration
 qrencode -t ansiutf8 </etc/wireguard/wg-client1.conf

@@ -2,27 +2,23 @@
 # Autor: Krzysztof Siek
 #Przekierowanie portów urządzeń zapiętych po vpn na publiczne port mikrusowe
 
-
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/noobs_lib.sh" || exit 1
 
 FILE=/root/openvpn-install.sh
 if [ -f "$FILE" ]; then
     echo "Openvpn jest zainstalowany."
-else 
+else
     echo "zainstaluj openvpn(cd /opt/noobs/scripts && ./chce_openvpn.sh)."
     exit
 fi
 
 
-echo "IP i port w sieci VPN które chcesz przekiwerować na świat(np. 10.8.0.2:80)"
-read ip_local
-echo "port mikrusow na który chcesz przekierować(np. 40048)"
-read port_public
-echo "Nazwa usługi która ma być wystawiona na świat"
-read usluga
-echo "mikrusowy port ssh"
-read ssh
-echo "port na którym stoi openvpn"
-read openvpn
+ask_input "IP i port w sieci VPN które chcesz przekiwerować na świat(np. 10.8.0.2:80)"; ip_local="$REPLY"
+ask_input "port mikrusow na który chcesz przekierować(np. 40048)"; port_public="$REPLY"
+ask_input "Nazwa usługi która ma być wystawiona na świat"; usluga="$REPLY"
+ask_input "mikrusowy port ssh"; ssh="$REPLY"
+ask_input "port na którym stoi openvpn"; openvpn="$REPLY"
 
 
 

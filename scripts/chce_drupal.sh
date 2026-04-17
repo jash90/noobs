@@ -1,35 +1,32 @@
 #!/bin/bash
 #Michał Giza
 
-echo -e "\e[1;32mSprawdzenie uprawnień \e[0m"
-if [ $EUID != 0 ]
-then
-	echo "Uruchom poprzez sudo bash chce_drupal.sh lub jako root"
-    exit
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/noobs_lib.sh" || exit 1
 
+require_root
 
-echo -e "\e[1;32mAktualizacja pakietów \e[0m"
-apt update
+msg_info "Aktualizacja pakietów"
+pkg_update
 
-echo -e "\e[1;32mDodanie repozytorium z PHP \e[0m"
-apt install software-properties-common -y
+msg_info "Dodanie repozytorium z PHP"
+pkg_install software-properties-common
 add-apt-repository ppa:ondrej/php -y
-apt update
+pkg_update
 
-echo -e "\e[1;32mInstalacja pakietów \e[0m"
-apt install vsftpd unzip nginx mariadb-server php8.0-fpm php8.0-dom php8.0-gd php8.0-xml php8.0-mysql php8.0-mbstring -y
+msg_info "Instalacja pakietów"
+pkg_install vsftpd unzip nginx mariadb-server php8.0-fpm php8.0-dom php8.0-gd php8.0-xml php8.0-mysql php8.0-mbstring
 
-echo -e "\e[1;32mBlokada dostępu SSH \e[0m"
+msg_info "Blokada dostępu SSH"
 cat >> /etc/ssh/sshd_config <<EOL
 Match User drupal
 ChrootDirectory /home/drupal
 EOL
 
-echo -e "\e[1;32mRestart SSH \e[0m"
-systemctl restart ssh
+msg_info "Restart SSH"
+service_restart ssh
 
-echo -e "\e[1;32mKonfiguracja FTP \e[0m"
+msg_info "Konfiguracja FTP"
 cp /etc/vsftpd.conf /etc/vsftpd.conf.backup
 cat > /etc/vsftpd.conf <<EOL
 listen=NO
@@ -54,27 +51,27 @@ pasv_min_port=40000
 pasv_max_port=40100
 EOL
 
-echo -e "\e[1;32mRestart vsftpd \e[0m"
-systemctl restart vsftpd
+msg_info "Restart vsftpd"
+service_restart vsftpd
 
-echo -e "\e[1;32mTworzenie bazy i usera \e[0m"
-HASLO="$(openssl rand -base64 12)"
+msg_info "Tworzenie bazy i usera"
+HASLO="$(generate_password)"
 mysql -e "CREATE DATABASE drupal;"
 mysql -e "CREATE USER 'drupal'@'localhost' IDENTIFIED BY '${HASLO}';"
 mysql -e "GRANT ALL ON drupal.* TO 'drupal'@'localhost' WITH GRANT OPTION;"
 mysql -e "FLUSH PRIVILEGES;"
 
-echo -e "\e[1;32mDodanie dedykowanego usera dla web servera \e[0m"
-SSH_PASS="$(openssl rand -base64 12)"
+msg_info "Dodanie dedykowanego usera dla web servera"
+SSH_PASS="$(generate_password)"
 useradd -m drupal -s /bin/bash
 echo drupal:${SSH_PASS} | chpasswd
 
-echo -e "\e[1;32mZmiana ustawień PHP \e[0m"
+msg_info "Zmiana ustawień PHP"
 sed -i 's,^memory_limit =.*$,memory_limit = 768M,' /etc/php/8.0/fpm/php.ini
 sed -i 's,^max_execution_time =.*$,max_execution_time = 3600,' /etc/php/8.0/fpm/php.ini
 sed -i 's,^max_input_time =.*$,max_input_time = 3600,' /etc/php/8.0/fpm/php.ini
 
-echo -e "\e[1;32mUtworzenie dedykowanego PHP pool \e[0m"
+msg_info "Utworzenie dedykowanego PHP pool"
 cp /etc/php/8.0/fpm/pool.d/www.conf /etc/php/8.0/fpm/pool.d/drupal.conf
 cat > /etc/php/8.0/fpm/pool.d/drupal.conf <<EOL
 [drupal]
@@ -90,18 +87,18 @@ pm.min_spare_servers = 1
 pm.max_spare_servers = 3
 EOL
 
-echo -e "\e[1;32mRestart PHP \e[0m"
-systemctl restart php8.0-fpm
+msg_info "Restart PHP"
+service_restart php8.0-fpm
 
-echo -e "\e[1;32mPobieranie Drupal \e[0m"
+msg_info "Pobieranie Drupal"
 su - drupal -c "wget https://ftp.drupal.org/files/projects/drupal-9.2.8.zip"
 
-echo -e "\e[1;32mWypakowywanie do /home/drupal/public_html \e[0m"
+msg_info "Wypakowywanie do /home/drupal/public_html"
 su - drupal -c "unzip drupal-9.2.8.zip"
 su - drupal -c "rm drupal-9.2.8.zip"
 su - drupal -c "mv drupal-9.2.8 public_html"
 
-echo -e "\e[1;32mDodanie konfiguracji Nginx \e[0m"
+msg_info "Dodanie konfiguracji Nginx"
 unlink /etc/nginx/sites-enabled/default
 cat > /etc/nginx/sites-available/drupal <<EOL
 server {
@@ -143,12 +140,11 @@ server {
 EOL
 ln -s /etc/nginx/sites-available/drupal /etc/nginx/sites-enabled/
 
-echo -e "\e[1;32mRestart Nginx \e[0m"
-systemctl restart nginx
+msg_info "Restart Nginx"
+service_restart nginx
 
-echo -e "\e[1;32mDalsze instrukcje w pliku drupal.txt \e[0m"
-GATEWAY="$(/sbin/ip route | awk '/default/ { print $3 }')"
-IP="$(ip route get ${GATEWAY} | grep -oP 'src \K[^ ]+')"
+msg_info "Dalsze instrukcje w pliku drupal.txt"
+IP="$(get_local_ip)"
 cat > drupal.txt <<EOL
 Drupal jest gotowy do instalacji pod http://${IP}.
 Nazwa bazy i użytkownika to drupal.
