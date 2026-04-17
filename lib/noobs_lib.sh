@@ -28,19 +28,19 @@ _noobs_source() {
     fi
 }
 
-_noobs_source messages.sh
-_noobs_source permissions.sh
-_noobs_source packages.sh
-_noobs_source repos.sh
-_noobs_source services.sh
-_noobs_source ui.sh
-_noobs_source utils.sh
-_noobs_source files.sh
-_noobs_source config.sh
-_noobs_source users.sh
-_noobs_source errors.sh
-_noobs_source mysql.sh
-_noobs_source php.sh
-_noobs_source apache.sh
-_noobs_source nginx.sh
-_noobs_source systemd.sh
+_noobs_source messages.sh   || exit 1
+_noobs_source permissions.sh || exit 1
+_noobs_source packages.sh   || exit 1
+_noobs_source repos.sh      || exit 1
+_noobs_source services.sh   || exit 1
+_noobs_source ui.sh         || exit 1
+_noobs_source utils.sh      || exit 1
+_noobs_source files.sh      || exit 1
+_noobs_source config.sh     || exit 1
+_noobs_source users.sh      || exit 1
+_noobs_source errors.sh     || exit 1
+_noobs_source mysql.sh      || exit 1
+_noobs_source php.sh        || exit 1
+_noobs_source apache.sh     || exit 1
+_noobs_source nginx.sh      || exit 1
+_noobs_source systemd.sh    || exit 1

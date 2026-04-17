@@ -50,7 +50,15 @@ php_configure() {
 
     backup_file "$ini_path"
 
-    sed -i "s|^;*\s*${setting}\s*=.*|${setting} = ${value}|" "$ini_path"
+    local setting_esc value_esc
+    setting_esc=$(printf '%s' "$setting" | sed 's/[]\/$*.^[|]/\\&/g')
+    value_esc=$(printf '%s' "$value" | sed 's/[\\&|]/\\&/g')
+
+    if grep -qE "^;*[[:space:]]*${setting_esc}[[:space:]]*=" "$ini_path"; then
+        sed -i "s|^;*[[:space:]]*${setting_esc}[[:space:]]*=.*|${setting} = ${value_esc}|" "$ini_path"
+    else
+        printf '%s = %s\n' "$setting" "$value" >> "$ini_path"
+    fi
 
     msg_ok "Zmieniono: $setting = $value w $ini_path"
 }
@@ -76,7 +84,7 @@ php_fpm_create_pool() {
 
     msg_info "Tworzenie puli PHP-FPM: $pool_name"
 
-    cat > "$pool_file" <<EOF
+    sudo tee "$pool_file" > /dev/null <<EOF
 [$pool_name]
 user = $user
 group = $group
@@ -95,7 +103,7 @@ php_admin_value[error_log] = /var/log/php-fpm/${pool_name}-error.log
 php_admin_flag[log_errors] = on
 EOF
 
-    mkdir -p /var/log/php-fpm
+    sudo mkdir -p /var/log/php-fpm
 
     msg_ok "Pula PHP-FPM utworzona: $pool_file"
     msg_info "Socket: $socket_path"

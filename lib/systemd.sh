@@ -15,6 +15,7 @@ create_systemd_service() {
     [[ -z "$service_name" ]] && { msg_error "Nie podano nazwy uslugi."; return 1; }
     [[ -z "$description" ]] && { msg_error "Nie podano opisu."; return 1; }
     [[ -z "$exec_start" ]] && { msg_error "Nie podano komendy uruchomienia."; return 1; }
+    [[ "$service_name" =~ ^[A-Za-z0-9._@:-]+$ ]] || { msg_error "Nieprawidlowa nazwa uslugi: $service_name"; return 1; }
 
     local service_file="/etc/systemd/system/${service_name}.service"
 
@@ -49,6 +50,7 @@ create_systemd_timer() {
 
     [[ -z "$timer_name" ]] && { msg_error "Nie podano nazwy timera."; return 1; }
     [[ -z "$on_calendar" ]] && { msg_error "Nie podano harmonogramu."; return 1; }
+    [[ "$timer_name" =~ ^[A-Za-z0-9._@:-]+$ ]] || { msg_error "Nieprawidlowa nazwa timera: $timer_name"; return 1; }
 
     local timer_file="/etc/systemd/system/${timer_name}.timer"
 

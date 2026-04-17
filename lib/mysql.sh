@@ -12,7 +12,14 @@ mysql_query() {
     [[ -z "$query" ]] && { msg_error "Nie podano zapytania SQL."; return 1; }
 
     if [[ -n "$password" ]]; then
-        mysql -u"$user" -p"$password" -e "$query"
+        local tmpfile
+        tmpfile=$(mktemp)
+        chmod 600 "$tmpfile"
+        printf '[client]\nuser=%s\npassword=%s\n' "$user" "$password" > "$tmpfile"
+        mysql --defaults-file="$tmpfile" -e "$query"
+        local rc=$?
+        rm -f "$tmpfile"
+        return $rc
     else
         mysql -u"$user" -e "$query"
     fi

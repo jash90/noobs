@@ -66,6 +66,7 @@ create_web_user() {
 
     if user_exists "$username"; then
         msg_warn "Uzytkownik '$username' juz istnieje."
+        REPLY=""
         return 0
     fi
 
@@ -82,7 +83,15 @@ create_web_user() {
     if [[ "$chroot_ssh" == "true" ]]; then
         msg_info "Konfigurowanie chroot SSH dla $username"
 
-        if ! grep -q "Match User $username" /etc/ssh/sshd_config; then
+        # ChrootDirectory wymaga wlasnosci root:root i trybu 755
+        chown root:root "$home_dir"
+        chmod 755 "$home_dir"
+        mkdir -p "${home_dir}/files"
+        chown "${username}:${username}" "${home_dir}/files"
+
+        local username_esc
+        username_esc=$(printf '%s' "$username" | sed 's/[[\.*^$()+?{|]/\\&/g')
+        if ! grep -qE "^Match User ${username_esc}$" /etc/ssh/sshd_config; then
             cat >> /etc/ssh/sshd_config <<EOF
 
 Match User $username
@@ -120,8 +129,10 @@ delete_web_user() {
         userdel "$username" 2>/dev/null
     fi
 
-    if grep -q "Match User $username" /etc/ssh/sshd_config; then
-        sed -i "/Match User $username/,/^Match\|^$/d" /etc/ssh/sshd_config
+    local username_esc
+    username_esc=$(printf '%s' "$username" | sed 's/[[\.*^$()+?{|]/\\&/g')
+    if grep -qE "^Match User ${username_esc}$" /etc/ssh/sshd_config; then
+        sed -i "/^Match User ${username_esc}$/,/^Match\|^$/d" /etc/ssh/sshd_config
         service_reload sshd 2>/dev/null || service_reload ssh 2>/dev/null
     fi
 
