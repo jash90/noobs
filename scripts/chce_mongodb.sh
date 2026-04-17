@@ -4,22 +4,24 @@
 # Version: 1.1
 #
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/noobs_lib.sh" || exit 1
 
-wget -qO - https://www.mongodb.org/static/pgp/server-5.0.asc | sudo apt-key add - && { printf "Prawidłowo zaimportowano klucz do repozytorium MongoDB"; } || { sudo apt-get install gnupg; wget -qO - https://www.mongodb.org/static/pgp/server-5.0.asc | sudo apt-key add - ;  printf "\nZainstalowano pakiet gnugp oraz prawidłowo zaimportowano klucz do repozytorium MongoDB\n";}
+wget -qO - https://www.mongodb.org/static/pgp/server-5.0.asc | sudo apt-key add - && { printf "Prawidłowo zaimportowano klucz do repozytorium MongoDB"; } || { pkg_install gnupg; wget -qO - https://www.mongodb.org/static/pgp/server-5.0.asc | sudo apt-key add - ; printf "\nZainstalowano pakiet gnugp oraz prawidłowo zaimportowano klucz do repozytorium MongoDB\n";}
 
 echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/5.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-5.0.list
 
-sudo apt-get update
+pkg_update
 
-sudo apt-get install -y mongodb-org
+pkg_install mongodb-org
 
-sudo systemctl start mongod && { printf "\nPrawidłowo uruchomiono MongoDB\n";} || { sudo systemctl daemon-reload; sudo systemctl start mongod
+service_start mongod && { printf "\nPrawidłowo uruchomiono MongoDB\n";} || { sudo systemctl daemon-reload; service_start mongod
 }
 
 printf "\nMongoDB jest poprawnie zainstalowana i uruchomiona\n"
 
 
-if ! command -v npm &> /dev/null
+if ! command_exists npm
 then
     printf "\nAby zainstalowac mongo-express potrzebujesz npm\n"
     exit
@@ -28,7 +30,7 @@ else
     sudo npm install -g mongo-express
     sudo cp /usr/lib/node_modules/mongo-express/config.default.js /usr/lib/node_modules/mongo-express/config.js
 
-    ME_PASS=$(sudo < /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c16)
+    ME_PASS=$(generate_password)
     sudo sed -i "s/password: getFileEnv(basicAuthPassword) || 'pass',/password: getFileEnv(basicAuthPassword) || '$ME_PASS',/g" /usr/lib/node_modules/mongo-express/config.js
     printf "\nHaslo dla admina mongo-express: $ME_PASS\n"
 

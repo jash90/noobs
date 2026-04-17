@@ -3,56 +3,42 @@
 # Autor: Jakub Rolecki
 # Zmodyfikowane przez: Jakub Suchenek (itsanon.xyz)
 
-if [[ $EUID -ne 0 ]]; then
-    echo -e "W celu instalacji tego pakietu potrzebujesz wyzszych uprawnien! Uzyj polecenia \033[1;31msudo ./chce_dockera.sh\033[0m lub zaloguj sie na konto roota i wywolaj skrypt ponownie."
-    exit 1
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/noobs_lib.sh" || exit 1
+
+require_root
 
 if [ ! -f /etc/os-release ]; then
-    echo "Nie można wykryć systemu operacyjnego!"
-    exit 1
+    die "Nie można wykryć systemu operacyjnego!"
 else
     . /etc/os-release
 fi
 
 if [ ! "$ID" == "ubuntu" ]; then
-    echo "Ten skrypt działa tylko na Ubuntu!"
-    exit 1
+    die "Ten skrypt działa tylko na Ubuntu!"
 fi
 
 # Zgodnie z oficjalną dokumentacją, minimalnym wspieranym systemem jest Ubuntu 22.04 LTS.
 # https://docs.docker.com/engine/install/ubuntu/#os-requirements
 if [[ "${VERSION_ID:0:2}" -lt 22 ]]; then
-    echo "Ten skrypt działa tylko na Ubuntu 22.04 lub nowszym!"
-    exit 1
+    die "Ten skrypt działa tylko na Ubuntu 22.04 lub nowszym!"
 fi
 
-echo "Usuwanie starych lub innych implementacji Dockera..."
-apt-get remove $(dpkg --get-selections docker.io docker-compose docker-compose-v2 docker-doc podman-docker containerd runc | cut -f1)
-if [[ $? -ne 0 ]]; then
-    echo "Wystąpił błąd podczas usuwania! Zobacz co się stało powyżej."
-    exit 1
-fi
+msg_info "Usuwanie starych lub innych implementacji Dockera..."
+apt-get remove $(dpkg --get-selections docker.io docker-compose docker-compose-v2 docker-doc podman-docker containerd runc | cut -f1) || die "Wystąpił błąd podczas usuwania! Zobacz co się stało powyżej."
 
-echo "Przygotowywanie repozytorium Dockera..."
-apt-get update && apt-get install -y ca-certificates curl
-if [[ $? -ne 0 ]]; then
-    echo "Nie można zainstalować pośrednich zależności Dockera! Zobacz co się stało powyżej."
-    exit 1
-fi
+msg_info "Przygotowywanie repozytorium Dockera..."
+pkg_update
+pkg_install ca-certificates curl || die "Nie można zainstalować pośrednich zależności Dockera! Zobacz co się stało powyżej."
 
-echo "Pobieranie klucza GPG repozytorium Dockera..."
+msg_info "Pobieranie klucza GPG repozytorium Dockera..."
 install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-if [[ $? -ne 0 ]]; then
-    echo "Nie można pobrać klucza GPG!"
-    exit 1
-fi
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc || die "Nie można pobrać klucza GPG!"
 chmod a+r /etc/apt/keyrings/docker.asc
 
-echo "Wykryto instalację Ubuntu '$UBUNTU_CODENAME'."
+msg_info "Wykryto instalację Ubuntu '$UBUNTU_CODENAME'."
 
-echo "Dodawanie repozytorium Dockera..."
+msg_info "Dodawanie repozytorium Dockera..."
 tee /etc/apt/sources.list.d/docker.sources <<EOF
 Types: deb
 URIs: https://download.docker.com/linux/ubuntu
@@ -60,35 +46,18 @@ Suites: $UBUNTU_CODENAME
 Components: stable
 Signed-By: /etc/apt/keyrings/docker.asc
 EOF
-apt-get update
-if [[ $? -ne 0 ]]; then
-    echo "Wystąpił błąd przy dodawaniu repozytrium! Zobacz co się stało powyżej lub zgłoś ten problem na GitHubie."
-    exit 1
-fi
+pkg_update || die "Wystąpił błąd przy dodawaniu repozytrium! Zobacz co się stało powyżej lub zgłoś ten problem na GitHubie."
 
-echo "Instalowanie Dockera..."
-apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-if [[ $? -ne 0 ]]; then
-    echo "Wystąpił błąd podczas instalowania Dockera! Zobacz co się stało powyżej."
-    exit 1
-fi
+msg_info "Instalowanie Dockera..."
+pkg_install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin || die "Wystąpił błąd podczas instalowania Dockera! Zobacz co się stało powyżej."
 
-echo "Uruchamianie Dockera (dla pewności)..."
+msg_info "Uruchamianie Dockera (dla pewności)..."
 # Dokumentacja nie precyzuje, czy ma być to 'docker.service' czy 'docker.socket'.
 # https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository
-systemctl enable --now docker
-if [[ $? -ne 0 ]]; then
-    echo "Nie można uruchomić Dockera! Sprawdź logi korzystając z:"
-    echo "systemctl status docker"
-    exit 1
-fi
+service_enable_now docker || die "Nie można uruchomić Dockera! Sprawdź logi korzystając z: systemctl status docker"
 
-echo "Uruchamianie testowego obrazu Dockera..."
-docker run hello-world
-if [[ $? -ne 0 ]]; then
-    echo "Nie można uruhcomić testowego obrazu Dockera!"
-    exit 1
-fi
+msg_info "Uruchamianie testowego obrazu Dockera..."
+docker run hello-world || die "Nie można uruhcomić testowego obrazu Dockera!"
 
 # Nadanie uprawnień do Dockera dla domyślnego użytkownika.
 DEFAULT_USER=$(getent passwd 1000 | cut -d ":" -f 1)

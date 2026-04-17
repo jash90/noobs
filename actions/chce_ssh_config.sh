@@ -7,6 +7,10 @@
 #   --port PORT_NUMBER (to configure connection for non mikr.us host)
 #   --host HOSTNAME (to configure connection for non mikr.us host)
 #   username@test.com (without param in front)
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/noobs_lib.sh" || exit 1
+
 # some bash magic: https://brianchildress.co/named-parameters-in-bash/
 while [ $# -gt 0 ]; do
     if [[ $1 == *"--"* ]]; then
@@ -22,13 +26,11 @@ while [ $# -gt 0 ]; do
 done
 
 if [[ -n "$mikrus" && -n "$possible_ssh_param" ]]; then
-    echo "ERROR: --mikrus and ssh-like argument ($possible_ssh_param) were given in the same time!"
-    exit 1
+    die "ERROR: --mikrus and ssh-like argument ($possible_ssh_param) were given in the same time!"
 fi
 
 if [[ -n "$host" && -n "$possible_ssh_param" ]]; then
-    echo "ERROR: --host and ssh-like argument ($possible_ssh_param) were given in the same time!"
-    exit 2
+    die "ERROR: --host and ssh-like argument ($possible_ssh_param) were given in the same time!"
 fi
 
 port="${port:-22}"
@@ -36,14 +38,12 @@ user="${user:-root}"
 
 if [ -n "$mikrus" ]; then
     if ! [[ "$mikrus" =~ ^[a-z]+[0-9]+$ ]]; then
-        echo "ERROR: --mikrus parameter is not valid!"
-        exit 3
+        die "ERROR: --mikrus parameter is not valid!"
     fi
 
     number_part=$(echo "$mikrus" | grep -o '[0-9]\+')
     if [ -z "$number_part" ]; then
-        echo "ERROR: Could not extract number from mikrus name!"
-        exit 4
+        die "ERROR: Could not extract number from mikrus name!"
     fi
 
     port=$((10000 + number_part))
@@ -94,8 +94,7 @@ if ! grep -q "$header" ~/.ssh/config ; then
     echo "  Port $port" >> ~/.ssh/config
     echo "  IdentityFile $ssh_key_file" >> ~/.ssh/config
 else
-    echo "ERROR: '$header' already defined in ~/.ssh/config!"
-    exit 6
+    die "ERROR: '$header' already defined in ~/.ssh/config!"
 fi
 
 ssh-copy-id -i "$ssh_key_file" $header

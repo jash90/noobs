@@ -4,22 +4,25 @@
 # Author: Sebastian Matuszczyk
 #
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/noobs_lib.sh" || exit 1
 
 # Add the HashiCorp GPG key
 curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
 
 # Install the software-properties-common package in order to add HashiCorp repo
-sudo apt install software-properties-common -y
+pkg_install software-properties-common
 
 # Add the HashiCorp repo
 sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
 
 # Update and install
-sudo apt-get update && sudo apt-get install vault
+pkg_update
+pkg_install vault
 
 # Verifying the installation
 if vault -h ; then
-    echo -e "\e[1;32mGotowe! \e[1;37mVault zainstalowany."
+    msg_ok "Vault zainstalowany."
 else
-    echo -e "\e[1;31mInstalacja się nie powiodła."
+    msg_error "Instalacja się nie powiodła."
 fi

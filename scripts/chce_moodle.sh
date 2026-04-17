@@ -1,34 +1,32 @@
 #!/bin/bash
 #Michał Giza
 
-echo -e "\e[1;32mSprawdzenie uprawnień \e[0m"
-if [ $EUID != 0 ]
-then
-	echo "Uruchom poprzez sudo bash chce_moodle.sh lub jako root"
-    exit
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/noobs_lib.sh" || exit 1
 
-echo -e "\e[1;32mAktualizacja pakietów \e[0m"
-apt update
+require_root
 
-echo -e "\e[1;32mDodanie repozytorium z PHP \e[0m"
-apt install software-properties-common -y
+msg_info "Aktualizacja pakietów"
+pkg_update
+
+msg_info "Dodanie repozytorium z PHP"
+pkg_install software-properties-common
 add-apt-repository ppa:ondrej/php -y
-apt update
+pkg_update
 
-echo -e "\e[1;32mInstalacja pakietów \e[0m"
-apt install vsftpd nginx php7.4-fpm php7.4-common php7.4-iconv php7.4-mysql php7.4-curl php7.4-mbstring php7.4-xmlrpc php7.4-soap php7.4-zip php7.4-gd php7.4-xml php7.4-intl php7.4-json libpcre3 libpcre3-dev graphviz aspell ghostscript clamav mariadb-server -y
+msg_info "Instalacja pakietów"
+pkg_install vsftpd nginx php7.4-fpm php7.4-common php7.4-iconv php7.4-mysql php7.4-curl php7.4-mbstring php7.4-xmlrpc php7.4-soap php7.4-zip php7.4-gd php7.4-xml php7.4-intl php7.4-json libpcre3 libpcre3-dev graphviz aspell ghostscript clamav mariadb-server
 
-echo -e "\e[1;32mBlokada dostępu SSH \e[0m"
+msg_info "Blokada dostępu SSH"
 cat >> /etc/ssh/sshd_config <<EOL
 Match User moodle
 ChrootDirectory /home/moodle
 EOL
 
-echo -e "\e[1;32mRestart SSH \e[0m"
-systemctl restart ssh
+msg_info "Restart SSH"
+service_restart ssh
 
-echo -e "\e[1;32mKonfiguracja FTP \e[0m"
+msg_info "Konfiguracja FTP"
 cp /etc/vsftpd.conf /etc/vsftpd.conf.backup
 cat > /etc/vsftpd.conf <<EOL
 listen=NO
@@ -53,20 +51,20 @@ pasv_min_port=40000
 pasv_max_port=40100
 EOL
 
-echo -e "\e[1;32mRestart vsftpd \e[0m"
-systemctl restart vsftpd
+msg_info "Restart vsftpd"
+service_restart vsftpd
 
-echo -e "\e[1;32mDodanie dedykowanego usera dla web servera \e[0m"
-SSH_PASS="$(openssl rand -base64 12)"
+msg_info "Dodanie dedykowanego usera dla web servera"
+SSH_PASS="$(generate_password)"
 useradd -m moodle -s /bin/bash
 echo moodle:${SSH_PASS} | chpasswd
 
-echo -e "\e[1;32mZmiana ustawień PHP \e[0m"
+msg_info "Zmiana ustawień PHP"
 cat >> /etc/php/7.4/fpm/php.ini <<EOL
 max_input_vars = 5000
 EOL
 
-echo -e "\e[1;32mUtworzenie dedykowanego PHP pool \e[0m"
+msg_info "Utworzenie dedykowanego PHP pool"
 cp /etc/php/7.4/fpm/pool.d/www.conf /etc/php/7.4/fpm/pool.d/moodle.conf
 cat > /etc/php/7.4/fpm/pool.d/moodle.conf <<EOL
 [moodle]
@@ -82,10 +80,10 @@ pm.min_spare_servers = 1
 pm.max_spare_servers = 3
 EOL
 
-echo -e "\e[1;32mRestart PHP-FPM \e[0m"
-systemctl restart php7.4-fpm
+msg_info "Restart PHP-FPM"
+service_restart php7.4-fpm
 
-echo -e "\e[1;32mZmiana konfiguracji MySQL \e[0m"
+msg_info "Zmiana konfiguracji MySQL"
 cat > /etc/mysql/mariadb.conf.d/50-server.cnf <<EOL
 [server]
 [mysqld]
@@ -110,33 +108,33 @@ collation-server      = utf8mb4_general_ci
 [mariadb-10.3]
 EOL
 
-echo -e "\e[1;32mRestart MySQL \e[0m"
-systemctl restart mariadb
+msg_info "Restart MySQL"
+service_restart mariadb
 
-echo -e "\e[1;32mTworzenie bazy i usera \e[0m"
-HASLO="$(openssl rand -base64 12)"
+msg_info "Tworzenie bazy i usera"
+HASLO="$(generate_password)"
 mysql -e "CREATE DATABASE moodle;"
 mysql -e "CREATE USER 'moodle'@'localhost' IDENTIFIED BY '${HASLO}'"
 mysql -e "GRANT ALL PRIVILEGES ON moodle.* TO 'moodle'@'localhost';"
 mysql -e "FLUSH PRIVILEGES;"
 
-echo -e "\e[1;32mPobieranie Moodle \e[0m"
+msg_info "Pobieranie Moodle"
 wget https://download.moodle.org/stable311/moodle-3.11.2.tgz -O /tmp/moodle.tgz
 
-echo -e "\e[1;32mRozpakowanie archiwum \e[0m"
+msg_info "Rozpackowanie archiwum"
 tar -zvxf /tmp/moodle.tgz -C /home/moodle
 mv /home/moodle/moodle /home/moodle/public_html
 
-echo -e "\e[1;32mZmiana uprawnień \e[0m"
+msg_info "Zmiana uprawnień"
 chown moodle:moodle -R /home/moodle/public_html
 chmod 755 -R /home/moodle/public_html
 
-echo -e "\e[1;32mUtworzenie katalogu na dane użytkowników \e[0m"
+msg_info "Utworzenie katalogu na dane użytkowników"
 mkdir /var/moodledata
 chmod 755 -R /var/moodledata
 chown moodle:moodle -R /var/moodledata
 
-echo -e "\e[1;32mDodanie konfiguracji Nginx \e[0m"
+msg_info "Dodanie konfiguracji Nginx"
 unlink /etc/nginx/sites-enabled/default
 cat > /etc/nginx/sites-available/moodle <<EOL
 server{
@@ -160,12 +158,11 @@ server{
 EOL
 ln -s /etc/nginx/sites-available/moodle /etc/nginx/sites-enabled/
 
-echo -e "\e[1;32mRestart Nginx \e[0m"
-systemctl restart nginx
+msg_info "Restart Nginx"
+service_restart nginx
 
-echo -e "\e[1;32mDalsze instrukcje w pliku moodle.txt \e[0m"
-GATEWAY="$(/sbin/ip route | awk '/default/ { print $3 }')"
-IP="$(ip route get ${GATEWAY} | grep -oP 'src \K[^ ]+')"
+msg_info "Dalsze instrukcje w pliku moodle.txt"
+IP="$(get_local_ip)"
 cat > moodle.txt <<EOL
 Moodle jest gotowe do instalacji pod http://${IP}.
 Katalog danych Moodle to /var/moodledata

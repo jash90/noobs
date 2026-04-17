@@ -2,23 +2,26 @@
 # NEXTCLOUD installation script
 # Autors: Mariusz 'maniek205' Kowalski, Marcin Wozniak
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/noobs_lib.sh" || exit 1
+
 USERNAME="admin"
-PASSWORD=$(head -c 100 /dev/urandom | tr -dc A-Za-z0-9 | head -c13)
+PASSWORD=$(generate_password)
 
 DB_USER=root
-DB_PASS=$(head -c 100 /dev/urandom | tr -dc A-Za-z0-9 | head -c13)
+DB_PASS=$(generate_password)
 
 NEXT_CLOUD_USER="admin"
-NEXT_CLOUD_PASS=$(head -c 100 /dev/urandom | tr -dc A-Za-z0-9 | head -c13)
+NEXT_CLOUD_PASS=$(generate_password)
 
 #Set Timezone to prevent installation interruption
 [[ ! -f /etc/localtime ]] && ln -snf /usr/share/zoneinfo/Poland /etc/localtime && echo "Etc/UTC" > /etc/timezone
 
 #Installing prerequisites https://docs.nextcloud.com/server/latest/admin_manual/installation/example_ubuntu.html
-apt update
-apt install -y apache2 mariadb-server libapache2-mod-php8.1
-apt install -y php8.1-gd php8.1-mysql php8.1-curl php8.1-mbstring php8.1-intl
-apt install -y php8.1-gmp php8.1-bcmath php-imagick php8.1-xml php8.1-zip php8.1-fpm
+pkg_update
+pkg_install apache2 mariadb-server libapache2-mod-php8.1
+pkg_install php8.1-gd php8.1-mysql php8.1-curl php8.1-mbstring php8.1-intl
+pkg_install php8.1-gmp php8.1-bcmath php-imagick php8.1-xml php8.1-zip php8.1-fpm
 
 #Configuring mariaDB
 #/etc/init.d/mysql start
@@ -28,7 +31,7 @@ GRANT ALL PRIVILEGES ON nextcloud.* TO '$USERNAME'@'localhost';
 FLUSH PRIVILEGES;"
 
 #Downloading nextcloud tar.bz2 file
-apt install -y wget tar curl
+pkg_install wget tar curl
 
 nextcloud_link=$(curl https://nextcloud.com/install/\#instructions-server \
 	| grep -Eo 'https://.+\/releases\/.+\.tar\.bz2"' | sed 's/"//g')
@@ -72,7 +75,7 @@ service apache2 restart
 
 chown -R www-data:www-data /var/www/html/
 
-apt install -y sudo
+pkg_install sudo
 
 cd /var/www/html/nextcloud  || exit
 sudo -u www-data php occ  maintenance:install --database \

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/noobs_lib.sh" || exit 1
+
 if [[ -n "$(grep 'policz' ~/.bash_aliases)" ]]; then
     echo "Już dodano aliasy z tego pliku"
     exit 0

@@ -2,16 +2,19 @@
 # Jenkins na mikrusowym porcie
 # Autor: Maciej Loper, Radoslaw Karasinski, pablowyourmind
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/noobs_lib.sh" || exit 1
+
 status() {
     echo "[x] $1"
 }
 
-read -p "Podaj port, na którym ma działać Jenkins. Brak podania numeru spowoduje ustawienie portu 80:" port
-port=${port:-80}
+ask_input "Podaj port, na którym ma działać Jenkins. Brak podania numeru spowoduje ustawienie portu 80:"
+port=${REPLY:-80}
 status "Jenkins będzie nasłuchiwał na porcie $port"
 
 status "instalacja wymaganych pakietow"
-sudo apt install -y gnupg
+pkg_install gnupg
 echo
 
 status "dodawanie repozytorium Jenkinsa"
@@ -19,16 +22,16 @@ wget -q -O - https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | sudo apt
 sudo sh -c 'echo deb http://pkg.jenkins.io/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list'
 
 status "aktualizacja repozytoriow"
-sudo apt update
+pkg_update
 echo
 
 status "instalacja Jenkinsa i Javy JRE17"
-sudo apt install -y openjdk-17-jre-headless
-sudo apt install -y jenkins
+pkg_install openjdk-17-jre-headless
+pkg_install jenkins
 echo
 
 status "poprawki w konfiguracji"
-sudo systemctl stop jenkins
+service_stop jenkins
 sed -i 's|User=jenkins|User=root|' /lib/systemd/system/jenkins.service
 sed -i "s|JENKINS_PORT=8080|JENKINS_PORT=$port|" /lib/systemd/system/jenkins.service
 sed -i 's|JAVA_OPTS=-Djava.awt.headless=true|JAVA_OPTS=-Djava.awt.headless=true -Xms256m -Xmx512m|' /lib/systemd/system/jenkins.service
@@ -36,7 +39,7 @@ sudo systemctl daemon-reload
 echo
 
 status "uruchomienie"
-sudo systemctl start jenkins
+service_start jenkins
 echo
 
 echo -n "Gotowe. Jenkins nasłuchuje na porcie $port. Hasło początkowe: "

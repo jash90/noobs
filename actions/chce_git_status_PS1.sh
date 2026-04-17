@@ -2,6 +2,9 @@
 # Dodanie do aktualnego $PS1 statusu repozytorium gita bieżącego katalogu
 # Autorzy: Tomasz Wiśniewski, krystofair @ 2025-09-22
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/noobs_lib.sh" || exit 1
+
 echo "Jeśli twoja wybrana powłoka nie zadziała, to spróbuj zainstalować do 'bash'."
 sleep 1
 
@@ -270,4 +273,3 @@ unset FILENAME
 rm -f $GIT_PROMPT_FILE
 
 exit 0
-

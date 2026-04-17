@@ -3,11 +3,11 @@
 # Autor: Bartlomiej Szyszko
 # Edycja: ThomasMaven
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/noobs_lib.sh" || exit 1
+
 # Sprawdz uprawnienia przed wykonaniem skryptu instalacyjnego
-if [[ $EUID -ne 0 ]]; then
-   echo -e "W celu instalacji tego pakietu potrzebujesz wyzszych uprawnien! Uzyj polecenia \033[1;31msudo ./chce_fail2ban.sh\033[0m lub zaloguj sie na konto roota i wywolaj skrypt ponownie."
-   exit 1
-fi
+require_root
 
 # Domyslne zmienne konfiguracyjne
 BAN_TIME=30m
@@ -39,16 +39,16 @@ while getopts "p:b:f:m:h" opt; do
 done
 
 if [[ -z "$SSH_PORT" ]]; then
-   echo -e "\033[1;31mBlad:\033[0m Nie podano portu SSH. Uzyj flagi -p PORT."
+   msg_error "Nie podano portu SSH. Uzyj flagi -p PORT."
    echo ""
    usage
 fi
 
-apt update
-apt install -y fail2ban
+pkg_update
+pkg_install fail2ban
 
 # Zatrzymaj usluge fail2ban
-systemctl stop fail2ban
+service_stop fail2ban
 
 # Lokalny plik konfiguracyjny
 config=$(cat <<EOF
@@ -69,6 +69,6 @@ rm /etc/fail2ban/jail.local 2> /dev/null
 echo "$config" >> /etc/fail2ban/jail.local
 
 # Uruchomienie uslugi
-systemctl enable --now fail2ban
+service_enable_now fail2ban
 
-echo -e "\033[1;32mFail2ban zainstalowany i uruchomiony!\033[0m"
+msg_ok "Fail2ban zainstalowany i uruchomiony!"

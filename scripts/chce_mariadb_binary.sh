@@ -1,5 +1,9 @@
 #!/bin/bash
 #Script created by Andrzej "Ferex" Szczepaniak
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/noobs_lib.sh" || exit 1
+
 if [ -z "$1" ]; then
     echo "Poprawna składnia: ./chce_mariadb_binary.sh użytkownik_mysql port linia_wersji sciezka"
     echo "Gdzie:"
@@ -26,7 +30,7 @@ elif [ -z "$4" ]; then
     exit 1
 else
 
-apt install w3m -y
+pkg_install w3m
 
 check_user_exist=$(cat /etc/passwd | grep "$1")
 check_number='^[0-9]+$'
@@ -43,8 +47,7 @@ exit 1
 fi
 
 if ! [[ $db_port =~ $check_number ]] ; then
-echo "Podany port nie jest liczbą!" >&2
-exit 1
+die "Podany port nie jest liczbą!"
 fi
 
 if [ -z $line ]; then
@@ -102,7 +105,7 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
-systemctl enable --now "$service_name"
+service_enable_now "$service_name"
 
 echo "==================================================================================================================================================================="
 echo "Aby zmienić hasło roota wykonaj polecenie: cd $sciezka/bin/ && ./mysqladmin --user=root --socket=$sciezka/thesock --protocol=socket password tuwpiszswojenowehaslo"

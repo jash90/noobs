@@ -5,13 +5,16 @@
 # Usage: you can pass --port and/or --host variables to script, otherwise
 # defaults will be choosen.
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/noobs_lib.sh" || exit 1
+
 # Helper to keep essential code tight
 function get-hostname
 {
     # Get first part of hostname from hostname -f
     local current_fqdn=$(hostname -f)
     local hostname_part=$(echo "$current_fqdn" | cut -f1 -d '.')
-    
+
     # If hostname has 4 characters, use old method with curl
     if [ ${#hostname_part} -eq 4 ]; then
         FQDN="$(curl -s https://ipinfo.io/hostname)"
@@ -21,7 +24,7 @@ function get-hostname
             host="${host_part}.mikr.us"
             echo "$host_part"
             export host="$host"
-            
+
         elif [[ ! "$FQDN" =~ ^.*[.]mikr[.]us ]]; then
             echo
             echo "Valid hostname is still not known : ( "
@@ -54,8 +57,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [[ ! -c /dev/net/tun ]]; then
-    echo "TUN/TAP not activated!"
-    exit 1
+    die "TUN/TAP not activated!"
 fi
 
 if [[ -z "$port" ]]; then
@@ -63,8 +65,7 @@ if [[ -z "$port" ]]; then
 fi
 
 if lsof -i:$port > /dev/null 2>&1 ; then
-    echo "Port $port is already used, try different one"
-    exit 1
+    die "Port $port is already used, try different one"
 fi
 
 get-hostname

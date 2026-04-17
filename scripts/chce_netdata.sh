@@ -8,6 +8,8 @@
 #  --url URL
 #  --duplicate
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/noobs_lib.sh" || exit 1
 
 # some bash magic: https://brianchildress.co/named-parameters-in-bash/
 while [ $# -gt 0 ]; do
@@ -20,8 +22,8 @@ done
 
 
 if [ -z "$port" ]; then
-    echo "Give desired port for netdata: (i.e. 20xxx or 30xxx):"
-    read -r port
+    ask_input "Give desired port for netdata: (i.e. 20xxx or 30xxx):"
+    port="$REPLY"
 fi
 
 extra_args=()
@@ -42,8 +44,8 @@ if [ -n "$duplicate" ]; then
     extra_args+=(--allow-duplicate-install)
 fi
 
-echo "Install required packages."
-apt install -y curl
+msg_info "Install required packages."
+pkg_install curl
 echo
 
 # install netdata
