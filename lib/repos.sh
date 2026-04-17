@@ -17,12 +17,16 @@ import_gpg_key() {
         pkg_install gnupg
     fi
 
-    if wget -qO - "$key_url" | gpg --dearmor -o "$keyring_path" 2>/dev/null; then
-        chmod 644 "$keyring_path"
+    local tmp_key
+    tmp_key=$(mktemp)
+    if wget -qO "$tmp_key" "$key_url" && sudo gpg --dearmor -o "$keyring_path" "$tmp_key" 2>/dev/null; then
+        rm -f "$tmp_key"
+        sudo chmod 644 "$keyring_path"
         msg_ok "Klucz GPG zaimportowany: $keyring_path"
         echo "$keyring_path"
         return 0
     else
+        rm -f "$tmp_key"
         msg_error "Nie udalo sie zaimportowac klucza GPG."
         return 1
     fi
@@ -79,11 +83,11 @@ add_repository_with_key() {
 
     msg_info "Dodawanie repozytorium: $list_file"
 
-    echo "deb [arch=${arch} signed-by=${keyring_path}] ${repo_line}" > "$list_path"
+    echo "deb [arch=${arch} signed-by=${keyring_path}] ${repo_line}" | sudo tee "$list_path" > /dev/null
 
     if [[ -f "$list_path" ]]; then
         msg_ok "Repozytorium dodane: $list_path"
-        pkg_update
+        pkg_update || { msg_error "Aktualizacja listy pakietow nie powiodla sie po dodaniu repozytorium."; return 1; }
         return 0
     else
         msg_error "Nie udalo sie utworzyc pliku repozytorium."

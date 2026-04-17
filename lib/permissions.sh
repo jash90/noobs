@@ -49,8 +49,14 @@ is_port_valid() {
 
 is_port_free() {
     local port="$1"
-    ! netstat -tuln 2>/dev/null | grep -q ":$port " && \
-    ! ss -tuln 2>/dev/null | grep -q ":$port "
+    if command_exists ss; then
+        ! ss -tuln 2>/dev/null | grep -qE ":${port}[[:space:]]"
+    elif command_exists netstat; then
+        ! netstat -tuln 2>/dev/null | grep -qE ":${port}[[:space:]]"
+    else
+        msg_warn "Brak narzedzi do sprawdzenia portu (ss/netstat). Nie mozna potwierdzic dostepnosci portu $port."
+        return 2
+    fi
 }
 
 check_internet() {

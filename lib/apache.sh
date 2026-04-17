@@ -12,6 +12,7 @@ apache_create_vhost() {
 
     [[ -z "$vhost_name" ]] && { msg_error "Nie podano nazwy vhosta."; return 1; }
     [[ -z "$doc_root" ]] && { msg_error "Nie podano document root."; return 1; }
+    require_root
 
     local vhost_file="/etc/apache2/sites-available/${vhost_name}.conf"
 
@@ -45,6 +46,7 @@ apache_create_alias() {
     [[ -z "$alias_name" ]] && { msg_error "Nie podano nazwy aliasu."; return 1; }
     [[ -z "$alias_url" ]] && { msg_error "Nie podano URL aliasu."; return 1; }
     [[ -z "$dir_path" ]] && { msg_error "Nie podano sciezki katalogu."; return 1; }
+    require_root
 
     local alias_file="/etc/apache2/sites-available/${alias_name}.conf"
 

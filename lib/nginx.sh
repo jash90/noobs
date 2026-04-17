@@ -13,6 +13,8 @@ nginx_create_server_block() {
 
     [[ -z "$block_name" ]] && { msg_error "Nie podano nazwy bloku."; return 1; }
     [[ -z "$root_path" ]] && { msg_error "Nie podano sciezki root."; return 1; }
+    [[ "$block_name" =~ ^[A-Za-z0-9._-]+$ ]] || { msg_error "Nieprawidlowa nazwa bloku (dozwolone: A-Z a-z 0-9 . _ -): $block_name"; return 1; }
+    [[ -d "$root_path" ]] || { msg_error "Katalog root nie istnieje: $root_path"; return 1; }
 
     local block_file="/etc/nginx/sites-available/${block_name}"
 

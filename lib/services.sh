@@ -5,8 +5,7 @@ readonly _NOOBS_SERVICES_LOADED=1
 
 service_exists() {
     local service="$1"
-    [[ $(systemctl list-units --all -t service --full --no-legend "$service.service" | \
-         sed 's/^\s*//g' | cut -f1 -d' ') == "$service.service" ]]
+    systemctl list-unit-files "${service}.service" --no-legend 2>/dev/null | grep -q "^${service}\.service"
 }
 
 service_is_active() {

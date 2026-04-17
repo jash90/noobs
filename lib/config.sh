@@ -14,11 +14,16 @@ config_set_value() {
     [[ -z "$key" ]] && { msg_error "Nie podano klucza."; return 1; }
     [[ ! -f "$file" ]] && { msg_error "Plik nie istnieje: $file"; return 1; }
 
-    if grep -qE "^[#;]*\s*${key}\s*${delimiter}" "$file"; then
-        sed -i "s|^[#;]*\s*${key}\s*${delimiter}.*|${key}${delimiter}${value}|" "$file"
+    local key_esc value_esc delim_esc
+    key_esc=$(printf '%s' "$key" | sed 's/[]\/$*.^[|]/\\&/g')
+    value_esc=$(printf '%s' "$value" | sed 's/[\\&|]/\\&/g')
+    delim_esc=$(printf '%s' "$delimiter" | sed 's/[]\/$*.^[|]/\\&/g')
+
+    if grep -qE "^[#;]*[[:space:]]*${key_esc}[[:space:]]*${delim_esc}" "$file"; then
+        sed -i "s|^[#;]*[[:space:]]*${key_esc}[[:space:]]*${delim_esc}.*|${key}${delimiter}${value_esc}|" "$file"
         msg_debug "Zmieniono: ${key}${delimiter}${value} w $file"
     else
-        echo "${key}${delimiter}${value}" >> "$file"
+        printf '%s%s%s\n' "$key" "$delimiter" "$value" >> "$file"
         msg_debug "Dodano: ${key}${delimiter}${value} do $file"
     fi
 }

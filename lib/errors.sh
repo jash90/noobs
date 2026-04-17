@@ -21,10 +21,8 @@ safe_exit() {
 }
 
 run_or_die() {
-    local cmd="$1"
-    local error_msg="${2:-Blad podczas wykonywania: $cmd}"
-
-    if ! eval "$cmd"; then
+    local error_msg="${2:-Blad podczas wykonywania: $1}"
+    if ! "$@"; then
         die "$error_msg"
     fi
 }

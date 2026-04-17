@@ -32,12 +32,17 @@ pkg_update() {
     pm=$(detect_package_manager) || return 1
 
     msg_info "Aktualizowanie listy pakietow..."
+    local rc=0
     case "$pm" in
-        apt)    sudo apt update ;;
-        dnf)    sudo dnf check-update || true ;;
-        yum)    sudo yum check-update || true ;;
-        pacman) sudo pacman -Sy ;;
+        apt)    DEBIAN_FRONTEND=noninteractive sudo apt update; rc=$? ;;
+        dnf)    sudo dnf check-update; rc=$?; [[ $rc -eq 100 ]] && rc=0 ;;
+        yum)    sudo yum check-update; rc=$?; [[ $rc -eq 100 ]] && rc=0 ;;
+        pacman) sudo pacman -Sy; rc=$? ;;
     esac
+    if [[ $rc -ne 0 ]]; then
+        msg_error "Aktualizacja listy pakietow nie powiodla sie."
+        return $rc
+    fi
     msg_ok "Lista pakietow zaktualizowana."
 }
 
@@ -48,12 +53,18 @@ pkg_install() {
     [[ $# -eq 0 ]] && { msg_error "Nie podano pakietow do instalacji."; return 1; }
 
     msg_info "Instalowanie pakietow: $*"
+    local rc=0
     case "$pm" in
-        apt)    sudo apt install -y "$@" ;;
-        dnf)    sudo dnf install -y "$@" ;;
-        yum)    sudo yum install -y "$@" ;;
-        pacman) sudo pacman -S --noconfirm "$@" ;;
+        apt)    DEBIAN_FRONTEND=noninteractive sudo apt install -y "$@"; rc=$? ;;
+        dnf)    sudo dnf install -y "$@"; rc=$? ;;
+        yum)    sudo yum install -y "$@"; rc=$? ;;
+        pacman) sudo pacman -S --noconfirm "$@"; rc=$? ;;
     esac
+    if [[ $rc -ne 0 ]]; then
+        msg_error "Instalacja pakietow nie powiodla sie."
+        return $rc
+    fi
+    msg_ok "Pakiety zainstalowane: $*"
 }
 
 pkg_remove() {
